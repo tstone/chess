@@ -24,16 +24,16 @@ class Piece
   end
 
   def valid_move?(pos)
-    on_board?(pos) && !teammate?(pos) && !move_into_check(pos)
+    on_board?(pos) && !teammate?(pos) # && !move_into_check?(pos)
   end
 
   def kill_move?(pos)
     enemy?(pos)
   end
 
-  def move_into_check?(pos)
-    new_board = board.dup
-    new_board.move(self.pos, pos)
+  def move_into_check?(position)
+    new_board = @board.dup
+    new_board.move(@pos, position)
 
     new_board.in_check?(@color)
   end
@@ -148,11 +148,6 @@ class King < SteppingPiece
   end
 
   DELTAS = [[-1,-1],[-1,0],[1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
-  #
-  # def moves
-  #   super(DELTAS)
-  # end
-
 
 end
 
@@ -163,10 +158,6 @@ class Knight < SteppingPiece
   end
 
   DELTAS = [[-2, -1],[-2, 1],[2, -1],[2, 1], [-1, -2], [-1, 2], [1, 2], [1, -2]]
-
-  # def moves
-  #   super(DELTAS)
-  # end
 
 end
 
@@ -218,9 +209,9 @@ end
 
 class Board
 
-  def initialize
+  def initialize(fresh_pieces = true)
     @board = Array.new(8) { Array.new(8) }
-    create_pieces
+    create_pieces if fresh_pieces
   end
 
 
@@ -235,14 +226,14 @@ class Board
   end
 
   def dup
-    new_board = Board.new
-    self.each do |row|
-      row.each do |tile|
+    new_board = Board.new(fresh_pieces = false)
+    @board.each_with_index do |row, i|
+      row.each_with_index do |tile, j|
         if tile == nil
-          new_board[[row,tile]] = nil
+          new_board[[i,j]] = nil
           next
         else
-          new_board[[row,tile]] = copy_piece(new_board, tile)
+          new_board[[i,j]] = copy_piece(new_board, tile)
         end
       end
     end
@@ -293,7 +284,7 @@ class Board
   end
 
   def in_check?(enemy_color)
-    enemy_king = board.flatten.select do |piece|
+    enemy_king = @board.flatten.select do |piece|
        piece.class == "King" && piece.color == enemy_color
     end
 
@@ -319,10 +310,10 @@ class Board
     if !piece
       raise "No piece at start position"
     end
-
-    if piece.move_into_check?(end_pos)
-      raise "Move would leave you in check"
-    end
+    # calls move into check -> move -> STACK LEVEL TOO DEEP!
+    # if piece.move_into_check?(end_pos)
+    #   raise "Move would leave you in check"
+    # end
 
     if piece.moves.include?(end_pos)
       self[end_pos] = piece
@@ -366,18 +357,24 @@ class Board
                         }
 
     puts ""
+    puts "              ┌───┬───┬───┬───┬───┬───┬───┬───┐"
+    n = 8
     @board.each do |row|
-      row_string = "                   "
+      row_string = "            #{n} │ "
       row.each do |piece|
-        row_string += "▢ " if piece.nil?
+        row_string += "  │ " if piece.nil?
         next if piece.nil?
         row_string += black_unicode_map[piece.class.to_s] if piece.color == :black
         row_string += white_unicode_map[piece.class.to_s] if piece.color == :white
-        row_string += " "
+        row_string += " │ "
       end
       puts row_string
+      break if n == 1
+      n = n - 1
+      puts "              ├───┼───┼───┼───┼───┼───┼───┼───┤"
     end
-    puts ""
+            puts "              └───┴───┴───┴───┴───┴───┴───┴───┘"
+            puts "                a   b   c   d   e   f   g   h  "
   end
 end
 
@@ -386,7 +383,7 @@ if $PROGRAM_NAME == __FILE__
 
   b = Board.new
   b.print_board
-
-
+  b.move([1,1],[2,1])
+  b.print_board
 
 end
