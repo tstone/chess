@@ -1,14 +1,11 @@
 class Piece
 
+  attr_accessor :color
+
   def initialize(board, pos, color)
     @board = board
     @pos = pos
     @color = color
-    moves
-  end
-
-  def moves
-    # returns array of places piece can move to
     @moves = []
   end
 
@@ -17,19 +14,19 @@ class Piece
   end
 
   def teammate?(pos)
-    @board[pos].color == @color
+    @board[pos] && (@board[pos].color == @color)
   end
 
   def enemy?(pos)
-    @board[pos].color != @color
+    @board[pos] && (@board[pos].color != @color)
   end
 
   def valid_move?(pos)
-    on_board?(pos) && !@board.teammate?(pos)
+    on_board?(pos) && !teammate?(pos)
   end
 
   def kill_move?(pos)
-    @board.enemy?(pos)
+    enemy?(pos)
   end
 end
 
@@ -55,7 +52,7 @@ class SlidingPiece < Piece
 
     directions.each do |dir|
       (1..7).each do |n|
-        current_move = [pos[0] + (n * DELTAS[dir][0]), pos[1] + (n * DELTAS[dir][1])]
+        current_move = [@pos[0] + (n * DELTAS[dir][0]), @pos[1] + (n * DELTAS[dir][1])]
         break if !valid_move?(current_move)
         moves << current_move
         break if kill_move?(current_move)
@@ -75,6 +72,10 @@ class Bishop < SlidingPiece
   def move_dirs
     [:up_left, :up_right, :down_left, :down_right]
   end
+
+  def moves
+    super(move_dirs)
+  end
 end
 
 class Rook < SlidingPiece
@@ -85,6 +86,10 @@ class Rook < SlidingPiece
 
   def move_dirs
     [:up, :right, :down, :left]
+  end
+
+  def moves
+    super(move_dirs)
   end
 end
 
@@ -97,6 +102,10 @@ class Queen < SlidingPiece
   def move_dirs
     [:up, :right, :down, :left, :up_left, :up_right, :down_left, :down_right]
   end
+
+  def moves
+    super(move_dirs)
+  end
 end
 
 
@@ -107,14 +116,14 @@ class SteppingPiece < Piece
     super
   end
 
-  def moves(deltas)
+  def moves
     moves = []
 
-    deltas.each do |(dy, dx)|
-      current_move = [pos[0] + dy, pos[1] + dx]
-      break if !valid_move?(current_move)
+    self.class::DELTAS.each do |(dy, dx)|
+      current_move = [@pos[0] + dy, @pos[1] + dx]
+      next if !valid_move?(current_move)
       moves << current_move
-      break if kill_move?(current_move)
+      next if kill_move?(current_move)
     end
 
     moves
@@ -129,6 +138,10 @@ class King < SteppingPiece
   end
 
   DELTAS = [[-1,-1],[-1,0],[1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
+  #
+  # def moves
+  #   super(DELTAS)
+  # end
 
 
 end
@@ -138,23 +151,58 @@ class Knight < SteppingPiece
   def initialize(board, pos, color)
     super
   end
+
   DELTAS = [[-2, -1],[-2, 1],[2, -1],[2, 1], [-1, -2], [-1, 2], [1, 2], [1, -2]]
+
+  # def moves
+  #   super(DELTAS)
+  # end
 
 end
 
-class Pawn < SteppingPiece
+class Pawn < Piece
 
   def initialize(board, pos, color)
     super
   end
 
-  if @color == :black
-    #call moves with delta of [-1, 0]
-  elsif @color == :white
-    #call moves with detla of [0, -1]
+  def moves
+    moves = []
+    if @color == :black
+      moves << [@pos[0] - 2, @pos[1]] if @pos[0] == 6
+      moves << [@pos[0] - 1, @pos[1]]
+    end
+
+    if @color == :white
+      moves << [@pos[0] + 2, @pos[1]] if @pos[0] == 1
+      moves << [@pos[0] + 1, @pos[1]]
+    end
+
+    moves.select do |move|
+      valid_move?(move)
+    end
+
+    moves += kill_moves
   end
 
+  def kill_moves
+    kill_moves = []
+    if @color == :black
+      left = [@pos[0] - 1, @pos[1] - 1]
+      right = [@pos[0] - 1, @pos[1] + 1]
+      kill_moves << left if kill_move?(left)
+      kill_moves << right if kill_move?(right)
+    end
 
+    if @color == :white
+      right = [@pos[0] + 1, @pos[1] - 1]
+      left = [@pos[0] + 1, @pos[1] + 1]
+      kill_moves << left if kill_move?(left)
+      kill_moves << right if kill_move?(right)
+    end
+
+    kill_moves
+  end
 end
 
 
@@ -167,46 +215,58 @@ class Board
 
 
   def [](pos)
-    y, x = pos[0], pos[1]
+    y, x = pos
     @board[y][x]
   end
 
   def []=(pos, mark)
-    y, x = pos[0], pos[1]
+    y, x = pos
     @board[y][x] = mark
   end
 
   def create_pieces
     # create the pawns
     8.times do |j|
-      board[1,j] = Pawn.new(self, [1,j], :white)
-      board[6,j] = Pawn.new(self, [6,j], :black)
+      self[[1,j]] = Pawn.new(self, [1,j], :white)
+      self[[6,j]] = Pawn.new(self, [6,j], :black)
     end
 
     # create the rooks
-    self[0,0] = Rook.new(self, [0,0], :white)
-    self[0,7] = Rook.new(self, [0,7], :white)
-    self[7,0] = Rook.new(self, [7,0], :black)
-    self[7,7] = Rook.new(self, [7,7], :black)
+    self[[0,0]] = Rook.new(self, [0,0], :white)
+    self[[0,7]] = Rook.new(self, [0,7], :white)
+    self[[7,0]] = Rook.new(self, [7,0], :black)
+    self[[7,7]] = Rook.new(self, [7,7], :black)
 
     # create the knights
-    self[0,1] = Knight.new(self, [0,1], :white)
-    self[0,6] = Knight.new(self, [0,6], :white)
-    self[7,1] = Knight.new(self, [7,1], :black)
-    self[7,6] = Knight.new(self, [7,6], :black)
+    self[[0,1]] = Knight.new(self, [0,1], :white)
+    self[[0,6]] = Knight.new(self, [0,6], :white)
+    self[[7,1]] = Knight.new(self, [7,1], :black)
+    self[[7,6]] = Knight.new(self, [7,6], :black)
 
     # create the bishops
-    self[0,2] = Bishop.new(self, [0,2], :white)
-    self[0,5] = Bishop.new(self, [0,2], :white)
-    self[7,2] = Bishop.new(self, [0,2], :black)
-    self[7,5] = Bishop.new(self, [0,2], :black)
+    self[[0,2]] = Bishop.new(self, [0,2], :white)
+    self[[0,5]] = Bishop.new(self, [0,2], :white)
+    self[[7,2]] = Bishop.new(self, [0,2], :black)
+    self[[7,5]] = Bishop.new(self, [0,2], :black)
 
     # create the queens
-    self[0,4] = Queen.new(self, [0,4], :white)
-    self[7,4] = Queen.new(self, [7,4], :black)
+    self[[0,4]] = Queen.new(self, [0,4], :white)
+    self[[7,4]] = Queen.new(self, [7,4], :black)
 
     # create the kings
-    self[0,3] = King.new(self, [0,3], :white)
-    self[7,3] = King.new(self, [7,3], :black)
+    self[[0,3]] = King.new(self, [0,3], :white)
+    self[[7,3]] = King.new(self, [7,3], :black)
   end
+  #
+  # def print_board
+  #   @board.each
+  #    { |row| p row }
+  # end
+end
+
+
+if $PROGRAM_NAME == __FILE__
+
+  b = Board.new
+
 end
