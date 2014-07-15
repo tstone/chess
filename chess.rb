@@ -2,7 +2,7 @@
 
 class Piece
 
-  attr_accessor :color
+  attr_accessor :color, :pos
 
   def initialize(board, pos, color)
     @board = board
@@ -24,12 +24,20 @@ class Piece
   end
 
   def valid_move?(pos)
-    on_board?(pos) && !teammate?(pos)
+    on_board?(pos) && !teammate?(pos) && !move_into_check(pos)
   end
 
   def kill_move?(pos)
     enemy?(pos)
   end
+
+  def move_into_check?(pos)
+    new_board = board.dup
+    new_board.move(self.pos, pos)
+
+    new_board.in_check?(@color)
+  end
+
 end
 
 class SlidingPiece < Piece
@@ -226,6 +234,30 @@ class Board
     @board[y][x] = mark
   end
 
+  def dup
+    new_board = Board.new
+    self.each do |row|
+      row.each do |tile|
+        if tile == nil
+          new_board[[row,tile]] = nil
+          next
+        else
+          new_board[[row,tile]] = copy_piece(new_board, tile)
+        end
+      end
+    end
+
+    new_board
+  end
+
+  def copy_piece(board, piece)
+    class_name = piece.class
+    position = piece.pos
+    color = piece.color
+
+    class_name.new(board, position, color)
+  end
+
   def create_pieces
     # create the pawns
     8.times do |j|
@@ -258,6 +290,60 @@ class Board
     # create the kings
     self[[0,3]] = King.new(self, [0,3], :white)
     self[[7,3]] = King.new(self, [7,3], :black)
+  end
+
+  def in_check?(enemy_color)
+    enemy_king = board.flatten.select do |piece|
+       piece.class == "King" && piece.color == enemy_color
+    end
+
+    team_color = (enemy_color == :black) ? :white : :black
+
+    all_team_moves(team_color).include?(enemy_king.pos)
+
+  end
+
+  def all_team_moves(team_color)
+    all_moves = []
+    pieces = board.flatten.select { |piece| piece.color == team_color }
+
+    pieces.each do |piece|
+      all_moves += piece.moves
+    end
+
+    all_moves
+  end
+
+  def move(start, end_pos)
+    piece = self[start]
+    if !piece
+      raise "No piece at start position"
+    end
+
+    if piece.move_into_check?(end_pos)
+      raise "Move would leave you in check"
+    end
+
+    if piece.moves.include?(end_pos)
+      self[end_pos] = piece
+      self[start] = nil
+      piece.pos = end_pos
+    else
+      raise "End position not valid"
+    end
+
+  end
+
+  def checkmate?
+    if in_check?(:black) && all_team_moves(:black).empty?
+      return true
+    end
+
+    if in_check?(:white) && all_team_moves(:white).empty?
+      return true
+    end
+
+    false
   end
 
 
