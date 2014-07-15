@@ -1,8 +1,9 @@
 class Piece
 
-  def initialize(board, pos)
+  def initialize(board, pos, color)
     @board = board
     @pos = pos
+    @color = color
     moves
   end
 
@@ -15,6 +16,21 @@ class Piece
     (0..7).include?(pos[0]) && (0..7).include?(pos[1])
   end
 
+  def teammate?(pos)
+    @board[pos].color == @color
+  end
+
+  def enemy?(pos)
+    @board[pos].color != @color
+  end
+
+  def valid_move?(pos)
+    on_board?(pos) && !@board.teammate?(pos)
+  end
+
+  def kill_move?(pos)
+    @board.enemy?(pos)
+  end
 end
 
 class SlidingPiece < Piece
@@ -35,9 +51,10 @@ class SlidingPiece < Piece
 
     directions.each do |dir|
       (1..7).each do |n|
-        current_move = [pos[0] + (n * DELTAS[dir][0]), pos[1] + (n * DELTAS[dir][1]])
+        current_move = [pos[0] + (n * DELTAS[dir][0]), pos[1] + (n * DELTAS[dir][1])]
         break if !valid_move?(current_move)
         moves << current_move
+        break if kill_move?(current_move)
       end
     end
 
@@ -71,19 +88,40 @@ end
 
 class SteppingPiece < Piece
 
-  def moves
+  def moves(deltas)
+    moves = []
+
+    deltas.each do |(dy, dx)|
+      current_move = [pos[0] + dy, pos[1] + dx]
+      break if !valid_move?(current_move)
+      moves << current_move
+      break if kill_move?(current_move)
+    end
+
+    moves
   end
 
 end
 
 class King < SteppingPiece
+  DELTAS = [[-1,-1],[-1,0],[1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]]
+
 
 end
 
 class Knight < SteppingPiece
+  DELTAS = [[-2, -1],[-2, 1],[2, -1],[2, 1], [-1, -2], [-1, 2], [1, 2], [1, -2]]
 
 end
 
 class Pawn < SteppingPiece
+
+
+  if @color == :black
+    #call moves with delta of [-1, 0]
+  elsif @color == :white
+    #call moves with detla of [0, -1]
+  end
+
 
 end
