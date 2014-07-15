@@ -1,3 +1,5 @@
+# encoding: utf-8
+
 class Piece
 
   attr_accessor :color
@@ -257,16 +259,48 @@ class Board
     self[[0,3]] = King.new(self, [0,3], :white)
     self[[7,3]] = King.new(self, [7,3], :black)
   end
-  #
-  # def print_board
-  #   @board.each
-  #    { |row| p row }
-  # end
+
+
+  def print_board
+    white_unicode_map = {
+                         "King" => "♔",
+                         "Queen" => "♕",
+                         "Rook" => "♖",
+                         "Bishop" => "♗",
+                         "Knight" => "♘",
+                         "Pawn" => "♙"
+                         }
+    black_unicode_map = {
+                        "King" => "♚",
+                        "Queen" => "♛",
+                        "Rook" => "♜",
+                        "Bishop" => "♝",
+                        "Knight" => "♞",
+                        "Pawn" => "♟"
+                        }
+
+    puts ""
+    @board.each do |row|
+      row_string = "                   "
+      row.each do |piece|
+        row_string += "▢ " if piece.nil?
+        next if piece.nil?
+        row_string += black_unicode_map[piece.class.to_s] if piece.color == :black
+        row_string += white_unicode_map[piece.class.to_s] if piece.color == :white
+        row_string += " "
+      end
+      puts row_string
+    end
+    puts ""
+  end
 end
 
 
 if $PROGRAM_NAME == __FILE__
 
   b = Board.new
+  b.print_board
+
+
 
 end
