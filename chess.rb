@@ -33,9 +33,9 @@ class Piece
 
   def move_into_check?(position)
     new_board = @board.dup
-    new_board.move(@pos, position)
+    new_board.move(@pos, position, check = false)
 
-    new_board.in_check?(@color)
+    raise "Move would leave you in check" if new_board.in_check?(@color)
   end
 
 end
@@ -305,15 +305,28 @@ class Board
     all_moves
   end
 
-  def move(start, end_pos)
+  def checkmate?
+    pieces = board.flatten.select { |piece| piece.color == team_color }
+
+    pieces.each do |piece|
+      return false if piece.moves.any? {|move| !piece.move_into_check?(move)}
+    end
+
+    true
+  end
+
+  def move(start, end_pos, check = true)
     piece = self[start]
     if !piece
       raise "No piece at start position"
     end
-    # calls move into check -> move -> STACK LEVEL TOO DEEP!
-    # if piece.move_into_check?(end_pos)
-    #   raise "Move would leave you in check"
-    # end
+
+    begin
+      piece.move_into_check?(end_pos) if check
+    rescue
+      "Caught move into check exception"
+
+    end
 
     if piece.moves.include?(end_pos)
       self[end_pos] = piece
@@ -325,17 +338,17 @@ class Board
 
   end
 
-  def checkmate?
-    if in_check?(:black) && all_team_moves(:black).empty?
-      return true
-    end
-
-    if in_check?(:white) && all_team_moves(:white).empty?
-      return true
-    end
-
-    false
-  end
+  # def checkmate?
+  #   if in_check?(:black) && all_team_moves(:black).empty?
+  #     return true
+  #   end
+  #
+  #   if in_check?(:white) && all_team_moves(:white).empty?
+  #     return true
+  #   end
+  #
+  #   false
+  # end
 
 
   def print_board
