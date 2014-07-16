@@ -35,7 +35,10 @@ class Piece
     new_board = @board.dup
     new_board.move(@pos, position, check = false)
 
-    raise "Move would leave you in check" if new_board.in_check?(@color)
+    # raise "Move would leave you in check" if new_board.in_check?(@color)
+    return true if new_board.in_check?(@color)
+
+    false
   end
 
 end
@@ -169,18 +172,22 @@ class Pawn < Piece
 
   def moves
     moves = []
-    if @color == :black
+    if @color == :white
       moves << [@pos[0] - 2, @pos[1]] if @pos[0] == 6
       moves << [@pos[0] - 1, @pos[1]]
     end
 
-    if @color == :white
+    if @color == :black
       moves << [@pos[0] + 2, @pos[1]] if @pos[0] == 1
       moves << [@pos[0] + 1, @pos[1]]
     end
 
-    moves.select do |move|
+    moves.select! do |move|
       valid_move?(move)
+    end
+
+    moves.select! do |move|
+      @board[move] == nil
     end
 
     moves += kill_moves
@@ -252,41 +259,43 @@ class Board
   def create_pieces
     # create the pawns
     8.times do |j|
-      self[[1,j]] = Pawn.new(self, [1,j], :white)
-      self[[6,j]] = Pawn.new(self, [6,j], :black)
+      self[[1,j]] = Pawn.new(self, [1,j], :black)
+      self[[6,j]] = Pawn.new(self, [6,j], :white)
     end
 
     # create the rooks
-    self[[0,0]] = Rook.new(self, [0,0], :white)
-    self[[0,7]] = Rook.new(self, [0,7], :white)
-    self[[7,0]] = Rook.new(self, [7,0], :black)
-    self[[7,7]] = Rook.new(self, [7,7], :black)
+    self[[0,0]] = Rook.new(self, [0,0], :black)
+    self[[0,7]] = Rook.new(self, [0,7], :black)
+    self[[7,0]] = Rook.new(self, [7,0], :white)
+    self[[7,7]] = Rook.new(self, [7,7], :white)
 
     # create the knights
-    self[[0,1]] = Knight.new(self, [0,1], :white)
-    self[[0,6]] = Knight.new(self, [0,6], :white)
-    self[[7,1]] = Knight.new(self, [7,1], :black)
-    self[[7,6]] = Knight.new(self, [7,6], :black)
+    self[[0,1]] = Knight.new(self, [0,1], :black)
+    self[[0,6]] = Knight.new(self, [0,6], :black)
+    self[[7,1]] = Knight.new(self, [7,1], :white)
+    self[[7,6]] = Knight.new(self, [7,6], :white)
 
     # create the bishops
-    self[[0,2]] = Bishop.new(self, [0,2], :white)
-    self[[0,5]] = Bishop.new(self, [0,2], :white)
-    self[[7,2]] = Bishop.new(self, [0,2], :black)
-    self[[7,5]] = Bishop.new(self, [0,2], :black)
+    self[[0,2]] = Bishop.new(self, [0,2], :black)
+    self[[0,5]] = Bishop.new(self, [0,2], :black)
+    self[[7,2]] = Bishop.new(self, [7,2], :white)
+    self[[7,5]] = Bishop.new(self, [7,5], :white)
 
     # create the queens
-    self[[0,4]] = Queen.new(self, [0,4], :white)
-    self[[7,4]] = Queen.new(self, [7,4], :black)
+    self[[0,3]] = Queen.new(self, [0,3], :black)
+    self[[7,3]] = Queen.new(self, [7,3], :white)
 
     # create the kings
-    self[[0,3]] = King.new(self, [0,3], :white)
-    self[[7,3]] = King.new(self, [7,3], :black)
+    self[[0,4]] = King.new(self, [0,4], :black)
+    self[[7,4]] = King.new(self, [7,4], :white)
   end
 
   def in_check?(enemy_color)
     enemy_king = @board.flatten.select do |piece|
-       piece.class == "King" && piece.color == enemy_color
+       piece.class.to_s == "King" && piece.color == enemy_color
     end
+
+    enemy_king = enemy_king[0]
 
     team_color = (enemy_color == :black) ? :white : :black
 
@@ -296,7 +305,7 @@ class Board
 
   def all_team_moves(team_color)
     all_moves = []
-    pieces = board.flatten.select { |piece| piece.color == team_color }
+    pieces = @board.flatten.select { |piece| piece.color == team_color if piece }
 
     pieces.each do |piece|
       all_moves += piece.moves
@@ -305,8 +314,8 @@ class Board
     all_moves
   end
 
-  def checkmate?
-    pieces = board.flatten.select { |piece| piece.color == team_color }
+  def checkmate?(team_color)
+    pieces = @board.flatten.select { |piece| piece.color == team_color if piece }
 
     pieces.each do |piece|
       return false if piece.moves.any? {|move| !piece.move_into_check?(move)}
@@ -337,19 +346,6 @@ class Board
     end
 
   end
-
-  # def checkmate?
-  #   if in_check?(:black) && all_team_moves(:black).empty?
-  #     return true
-  #   end
-  #
-  #   if in_check?(:white) && all_team_moves(:white).empty?
-  #     return true
-  #   end
-  #
-  #   false
-  # end
-
 
   def print_board
     white_unicode_map = {
@@ -391,12 +387,100 @@ class Board
   end
 end
 
+class Game
+
+  def initialize(player1 = HumanPlayer.new, player2 = HumanPlayer.new)
+    @player1 = player1
+    @player2 = player2
+    @player_color = ""
+    @board_object = Board.new
+    @player_turn = @player1
+  end
+
+  def play
+    @board_object.print_board
+
+    until game_over?
+      @player_color = "white" if @player_turn == @player1
+      @player_color = "black" if @player_turn == @player2
+
+      begin
+        puts "It is #{@player_turn.name}'s (#{@player_color}) turn."
+        start_pos, end_pos = parse(@player_turn.prompt)
+        @board_object.move(start_pos, end_pos)
+      rescue StandardError => e
+        puts e.message
+        retry
+      end
+
+      @board_object.print_board
+      @player_turn = (@player_turn == @player1) ? @player2 : @player1
+    end
+  end
+
+  def parse(prompt)
+    remap = {
+      "a" => 0,
+      "b" => 1,
+      "c" => 2,
+      "d" => 3,
+      "e" => 4,
+      "f" => 5,
+      "g" => 6,
+      "h" => 7
+    }
+
+    moves = []
+    positions = prompt.split(',')
+    positions.each do |pos|
+      moves << (8 - pos[1].to_i)
+      moves << remap[pos[0]]
+    end
+
+    start_pos = moves[0..1]
+    end_pos = moves[2..3]
+
+    [start_pos, end_pos].flatten.each do |n|
+      if !(0..7).include?(n)
+        raise "Entered invalid position #{@player_turn.name}!"
+      end
+    end
+
+    return [start_pos, end_pos]
+  end
+
+  def game_over?
+    if @board_object.checkmate?(:black) || @board_object.checkmate?(:white)
+      puts "Checkmate!"
+      return true
+    end
+    #also check if draw
+
+    false
+  end
+
+end
+
+class HumanPlayer
+  attr_accessor :name
+
+  def initialize
+    @name = ["Jake", "Samantha", "Earl", "David"].sample
+  end
+
+  def prompt
+    puts "Enter start and end positions (ex: d2,d3)"
+    gets.chomp
+  end
+
+end
+
+
 
 if $PROGRAM_NAME == __FILE__
 
-  b = Board.new
-  b.print_board
-  b.move([1,1],[2,1])
-  b.print_board
+  g = Game.new
+  g.play
+  # puts "Checkmate!" if b.checkmate?(:white)
 
 end
