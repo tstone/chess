@@ -1,4 +1,6 @@
 # encoding: utf-8
+require 'colorize'
+
 
 class Piece
 
@@ -216,8 +218,11 @@ end
 
 class Board
 
+  attr_accessor :board
+
   def initialize(fresh_pieces = true)
     @board = Array.new(8) { Array.new(8) }
+    @graveyard = []
     create_pieces if fresh_pieces
   end
 
@@ -338,6 +343,7 @@ class Board
     end
 
     if piece.moves.include?(end_pos)
+      kill(self[end_pos]) if self[end_pos] && check
       self[end_pos] = piece
       self[start] = nil
       piece.pos = end_pos
@@ -345,6 +351,12 @@ class Board
       raise "End position not valid"
     end
 
+  end
+
+  def kill(piece)
+    puts "In a vicious battle a #{piece.class.to_s} was killed!"
+
+    @graveyard << piece
   end
 
   def print_board
@@ -365,7 +377,41 @@ class Board
                         "Pawn" => "♟"
                         }
 
-    puts ""
+    graveyard_black1 = "                  "
+    graveyard_white1 = "                  "
+    graveyard_black2 = "                  "
+    graveyard_white2 = "                  "
+    pawn_graveyard = "          │"
+    other_graveyard = "          │"
+
+    @graveyard.each do |piece|
+      if (piece.color == :black && piece.class.to_s == "Pawn")
+        graveyard_black1 = black_unicode_map[piece.class.to_s] + " " + graveyard_black1[0..-3]
+      end
+
+      if (piece.color == :white && piece.class.to_s == "Pawn")
+        graveyard_white1 = white_unicode_map[piece.class.to_s] + " " + graveyard_white1[0..-3]
+      end
+
+      if (piece.color == :black && piece.class.to_s != "Pawn")
+        graveyard_black2 = black_unicode_map[piece.class.to_s] + " " + graveyard_black2[0..-3]
+      end
+
+      if (piece.color == :white && piece.class.to_s != "Pawn")
+        graveyard_white2 = white_unicode_map[piece.class.to_s] + " " + graveyard_white2[0..-3]
+      end
+    end
+
+    pawn_graveyard += graveyard_black1.reverse
+    pawn_graveyard += " ✞ "
+    pawn_graveyard += graveyard_white1
+    pawn_graveyard += "│"
+    other_graveyard += graveyard_black2.reverse
+    other_graveyard += " ✞ "
+    other_graveyard += graveyard_white2
+    other_graveyard += "│"
+
+    puts " "
     puts "              ┌───┬───┬───┬───┬───┬───┬───┬───┐"
     n = 8
     @board.each do |row|
@@ -382,12 +428,22 @@ class Board
       n = n - 1
       puts "              ├───┼───┼───┼───┼───┼───┼───┼───┤"
     end
-            puts "              └───┴───┴───┴───┴───┴───┴───┴───┘"
-            puts "                a   b   c   d   e   f   g   h  "
+
+    puts "              └───┴───┴───┴───┴───┴───┴───┴───┘"
+    puts "                a   b   c   d   e   f   g   h  "
+    puts " "
+    puts "          ┌───────────────────────────────────────┐"
+    puts "          │      ✞✞✞  G R A V E Y A R D  ✞✞✞      │"
+    puts pawn_graveyard
+    puts other_graveyard
+    puts "          └───────────────────────────────────────┘"
+    puts " "
   end
 end
 
 class Game
+
+  attr_accessor :board_object
 
   def initialize(player1 = HumanPlayer.new, player2 = HumanPlayer.new)
     @player1 = player1
@@ -481,6 +537,19 @@ if $PROGRAM_NAME == __FILE__
 
   g = Game.new
   g.play
-  # puts "Checkmate!" if b.checkmate?(:white)
+
+
+
+  # KILL ALL PIECES
+  # board = g.board_object.board
+  #
+  # pieces = board.flatten.select { |piece| !piece.nil? }
+  #
+  # pieces.each do |piece|
+  #   g.board_object.kill(piece)
+  # end
+  #
+  # g.board_object.print_board
+
 
 end
