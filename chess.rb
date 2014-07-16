@@ -193,6 +193,28 @@ class Pawn < Piece
     end
 
     moves += kill_moves
+
+    moves += en_passant_moves
+  end
+
+  def en_passant_moves
+    en_passant = []
+
+    if @color == :white
+      diff = -1
+    elsif @color == :black
+      diff = 1
+    end
+
+    return [] unless !@board.history.empty? && @board.history.last[0] == "Pawn"
+    return [] unless !@board.history.empty? && (@board.history.last[2][0] - @board.history.last[1][0]).abs == 2
+    if @board[[pos[0], pos[1] + 1]].class.to_s == "Pawn"
+      en_passant << [pos[0] + diff, pos[1] + 1]
+    elsif @board[[pos[0], pos[1] - 1]].class.to_s == "Pawn"
+      en_passant << [pos[0] + diff , pos[1] - 1]
+    end
+
+    en_passant
   end
 
   def kill_moves
@@ -218,12 +240,13 @@ end
 
 class Board
 
-  attr_accessor :board
+  attr_accessor :board, :history
 
   def initialize(fresh_pieces = true)
     @board = Array.new(8) { Array.new(8) }
     @graveyard = []
     create_pieces if fresh_pieces
+    @history = []
   end
 
 
@@ -331,19 +354,22 @@ class Board
 
   def move(start, end_pos, check = true)
     piece = self[start]
+    move_info = [piece.class.to_s, start, end_pos]
     if !piece
       raise "No piece at start position"
     end
 
-    begin
-      piece.move_into_check?(end_pos) if check
-    rescue
-      "Caught move into check exception"
-
+    if check
+      if piece.move_into_check?(end_pos)
+        raise "Can't move into check"
+      end
     end
 
     if piece.moves.include?(end_pos)
       kill(self[end_pos]) if self[end_pos] && check
+      en_passant_pos = en_passant_kill(piece, end_pos)
+      kill(self[en_passant_pos]) if en_passant_pos
+      self[en_passant_pos] = nil if en_passant_pos
       self[end_pos] = piece
       self[start] = nil
       piece.pos = end_pos
@@ -351,6 +377,18 @@ class Board
       raise "End position not valid"
     end
 
+    @history << move_info if check == true
+
+  end
+
+  def en_passant_kill(piece, end_pos)
+    kill_pos = nil
+    if piece.class.to_s == "Pawn" && piece.en_passant_moves.include?(end_pos)
+      kill_pos = [end_pos[0] + 1, end_pos[1]] if piece.color == :white
+      kill_pos = [end_pos[0] - 1, end_pos[1]] if piece.color == :black
+    end
+
+    kill_pos
   end
 
   def kill(piece)
@@ -443,12 +481,12 @@ end
 
 class Game
 
-  attr_accessor :board_object
+  attr_accessor :board_object, :history
 
   def initialize(player1 = HumanPlayer.new, player2 = HumanPlayer.new)
     @player1 = player1
     @player2 = player2
-    @player_color = ""
+    @player_color = :white
     @board_object = Board.new
     @player_turn = @player1
   end
@@ -457,8 +495,7 @@ class Game
     @board_object.print_board
 
     until game_over?
-      @player_color = "white" if @player_turn == @player1
-      @player_color = "black" if @player_turn == @player2
+
 
       begin
         puts "It is #{@player_turn.name}'s (#{@player_color}) turn."
@@ -471,6 +508,11 @@ class Game
 
       @board_object.print_board
       @player_turn = (@player_turn == @player1) ? @player2 : @player1
+
+      @player_color = :white if @player_turn == @player1
+      @player_color = :black if @player_turn == @player2
+      puts "CHECK!" if @board_object.in_check?(@player_color)
+
     end
   end
 
