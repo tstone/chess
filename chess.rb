@@ -195,14 +195,14 @@ class Pawn < Piece
 
   def kill_moves
     kill_moves = []
-    if @color == :black
+    if @color == :white
       left = [@pos[0] - 1, @pos[1] - 1]
       right = [@pos[0] - 1, @pos[1] + 1]
       kill_moves << left if kill_move?(left)
       kill_moves << right if kill_move?(right)
     end
 
-    if @color == :white
+    if @color == :black
       right = [@pos[0] + 1, @pos[1] - 1]
       left = [@pos[0] + 1, @pos[1] + 1]
       kill_moves << left if kill_move?(left)
