@@ -496,7 +496,6 @@ class Game
 
     until game_over?
 
-
       begin
         puts "It is #{@player_turn.name}'s (#{@player_color}) turn."
         start_pos, end_pos = parse(@player_turn.prompt)
@@ -529,7 +528,9 @@ class Game
     }
 
     moves = []
-    positions = prompt.split(',')
+
+    # accept any combination of `pos,pos` or `pos pos`, ignoring whitespace
+    positions = split_any(prompt, ",", " ").map{ |pos| pos.strip }
     positions.each do |pos|
       moves << (8 - pos[1].to_i)
       moves << remap[pos[0]]
@@ -545,6 +546,18 @@ class Game
     end
 
     return [start_pos, end_pos]
+  end
+
+  def split_any(str, *separators)
+    nodes = []
+    separators.each do |sep|
+      ns = str.split(sep)
+      if ns.size > 1
+        nodes = ns
+        break
+      end
+    end
+    nodes
   end
 
   def game_over?
