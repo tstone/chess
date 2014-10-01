@@ -530,7 +530,7 @@ class Game
     moves = []
 
     # accept any combination of `pos,pos` or `pos pos`, ignoring whitespace
-    positions = split_any(prompt, ",", " ").map{ |pos| pos.strip }
+    positions = split_any(prompt, ",", " ").map { |pos| pos.strip }
     positions.each do |pos|
       moves << (8 - pos[1].to_i)
       moves << remap[pos[0]]
@@ -549,15 +549,17 @@ class Game
   end
 
   def split_any(str, *separators)
-    nodes = []
+    used_separator = ""
+
+    # find which separator is actually in the string
     separators.each do |sep|
-      ns = str.split(sep)
-      if ns.size > 1
-        nodes = ns
+      if str.include?(sep)
+        used_separator = sep
         break
       end
     end
-    nodes
+
+    str.split(used_separator)
   end
 
   def game_over?
